@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const User = require('./user');
 
 const Report = sequelize.define('Report', {
   id: {
@@ -17,11 +16,15 @@ const Report = sequelize.define('Report', {
     allowNull: false,
   },
   reportDate: {
-    type: DataTypes.DATEONLY, // Stores only YYYY-MM-DD
+    type: DataTypes.DATEONLY,
     allowNull: false,
   },
+  disease: {
+    type: DataTypes.STRING,
+    defaultValue: 'General', // If left blank, it becomes 'General'
+  },
   imageUrl: {
-    type: DataTypes.STRING, // Stores the path: uploads/170...jpg
+    type: DataTypes.STRING,
     allowNull: false,
   },
   userId: {
@@ -29,9 +32,5 @@ const Report = sequelize.define('Report', {
     allowNull: false,
   }
 });
-
-// Relationships
-User.hasMany(Report, { foreignKey: 'userId' });
-Report.belongsTo(User, { foreignKey: 'userId' });
 
 module.exports = Report;
