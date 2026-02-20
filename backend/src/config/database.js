@@ -6,5 +6,4 @@ const sequelize = new Sequelize('flutter_backend', 'postgres', 'somasekhar', {
   dialect: 'postgres',
   logging: false, 
 });
-
 module.exports = sequelize;
