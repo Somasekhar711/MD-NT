@@ -130,7 +130,7 @@ class _AddReportPageState extends State<AddReportPage> {
             TextField(
               controller: diseaseController, 
               decoration: const InputDecoration(
-                labelText: "Condition (e.g., Asthma, Diabetes)", 
+                labelText: "Condition/Disease", 
                 hintText: "Leave blank for 'General'",
                 border: OutlineInputBorder()
               )
