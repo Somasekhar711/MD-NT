@@ -14,12 +14,23 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+  
+  // --- NEW: Controller for the security answer ---
+  final TextEditingController securityAnswerController = TextEditingController();
 
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
-  bool _isLoading = false; // To show loading spinner
+  bool _isLoading = false; 
+
+  // --- NEW: Security Question State ---
+  String _selectedQuestion = 'What is your childhood pet\'s name?';
+  final List<String> _securityQuestions = [
+    'What is your childhood pet\'s name?',
+    'What city were you born in?',
+    'What is your mother\'s maiden name?',
+    'What was the name of your first school?'
+  ];
 
   final Color primaryColor = const Color.fromARGB(255, 0, 132, 255);
 
@@ -34,8 +45,9 @@ class _RegisterPageState extends State<RegisterPage> {
     String email = emailController.text.trim();
     String password = passwordController.text;
     String confirmPassword = confirmPasswordController.text;
+    String securityAnswer = securityAnswerController.text.trim(); // Grab the answer
 
-    // --- 1. Client-Side Validation (Keep this to save server resources) ---
+    // --- 1. Client-Side Validation ---
     if (username.isEmpty) {
       showSnack('Username must not be empty');
       return;
@@ -66,10 +78,15 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    // New validation for security answer
+    if (securityAnswer.isEmpty) {
+      showSnack('Please provide an answer to the security question');
+      return;
+    }
+
     // --- 2. Server Communication ---
     setState(() => _isLoading = true);
 
-    // Using central config
     final String url = '${AppConfig.baseUrl}/register';
 
     try {
@@ -82,16 +99,17 @@ class _RegisterPageState extends State<RegisterPage> {
           'name': username,
           'email': email,
           'password': password,
+          // Send the new fields to Node.js!
+          'securityQuestion': _selectedQuestion,
+          'securityAnswer': securityAnswer, 
         }),
       );
 
       // --- 3. Handle Response ---
       if (response.statusCode == 201) {
-        // Success
         showSnack('Registered successfully!');
         if (mounted) Navigator.pop(context); // Go back to login
       } else {
-        // Error (e.g., User already exists)
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         showSnack(responseData['message'] ?? 'Registration failed');
       }
@@ -101,7 +119,7 @@ class _RegisterPageState extends State<RegisterPage> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false; // Stop loading spinner
+          _isLoading = false; 
         });
       }
     }
@@ -151,7 +169,7 @@ class _RegisterPageState extends State<RegisterPage> {
       appBar: AppBar(
         title: const Text('Register', style: TextStyle(color: Colors.white)),
         backgroundColor: primaryColor,
-        automaticallyImplyLeading: false, // removes back arrow
+        automaticallyImplyLeading: false, 
       ),
       body: SingleChildScrollView(
         child: Center(
@@ -162,14 +180,12 @@ class _RegisterPageState extends State<RegisterPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-
-                  const SizedBox(height: 100),
+                  const SizedBox(height: 20),
 
                   TextField(
                     controller: usernameController,
                     decoration: inputDecoration('Username'),
                   ),
-
                   const SizedBox(height: 20),
 
                   TextField(
@@ -177,8 +193,37 @@ class _RegisterPageState extends State<RegisterPage> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: inputDecoration('Email'),
                   ),
-
                   const SizedBox(height: 20),
+
+                  // --- NEW: Security Question Dropdown ---
+                  DropdownButtonFormField<String>(
+                    decoration: inputDecoration('Account Recovery Question'),
+                    value: _selectedQuestion,
+                    isExpanded: true,
+                    items: _securityQuestions.map((String question) {
+                      return DropdownMenuItem<String>(
+                        value: question,
+                        child: Text(question, overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedQuestion = newValue!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // --- NEW: Security Answer TextField ---
+                  TextField(
+                    controller: securityAnswerController,
+                    decoration: inputDecoration('Secret Answer'),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Divider to separate security from passwords
+                  const Divider(),
+                  const SizedBox(height: 10),
 
                   TextField(
                     controller: passwordController,
@@ -200,7 +245,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 10),
 
                   Column(
@@ -213,7 +257,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       passwordRule(hasSpecial, 'Special character'),
                     ],
                   ),
-
                   const SizedBox(height: 20),
 
                   TextField(
@@ -236,17 +279,15 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 30),
 
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : register, // Disable if loading
+                      onPressed: _isLoading ? null : register, 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 15),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                       child: _isLoading 
                         ? const SizedBox(
@@ -263,7 +304,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                     ),
                   ),
-
                   const SizedBox(height: 15),
 
                   TextButton(

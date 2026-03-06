@@ -4,7 +4,8 @@ import 'dart:convert';
 import 'register_page.dart';
 import 'package:md_nt/home/dashboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:md_nt/config.dart'; // Added Import
+import 'package:md_nt/config.dart';
+import 'package:md_nt/forgot_password_page.dart'; // Import is here!
 
 class LoginPage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -46,25 +47,24 @@ class _LoginPageState extends State<LoginPage> {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
         String userName = data['user']['name'];
 
-    // SAVE DATA PERMANENTLY
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', data['token']);
-    await prefs.setString('userName', data['user']['name']);
+        // SAVE DATA PERMANENTLY
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+        await prefs.setString('userName', data['user']['name']);
 
-    if (mounted) {
-        Navigator.pushReplacement(
+        if (mounted) {
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-                builder: (context) => DashboardPage(
-                    toggleTheme: widget.toggleTheme,
-                    userName: userName,
-                ),
+              builder: (context) => DashboardPage(
+                toggleTheme: widget.toggleTheme,
+                userName: userName,
+              ),
             ),
-        );
-    }
+          );
+        }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -83,7 +83,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ... rest of your build method stays the same ...
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -155,6 +154,24 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(color: Colors.white),
                       ),
               ),
+              
+              // --- NEW: Forgot Password Button ---
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordPage()),
+                  );
+                },
+                child: const Text(
+                  'Forgot Password?',
+                  style: TextStyle(
+                      color: Colors.blue, fontWeight: FontWeight.w600),
+                ),
+              ),
+
               TextButton(
                 onPressed: () => Navigator.push(
                   context,

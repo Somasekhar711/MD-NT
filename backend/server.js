@@ -14,15 +14,15 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ----------------------------------------------------
 // IMPORTANT: Database Sync
-// { alter: true } forces Postgres to add the new 'disease' column.
-// After you run 'npm start' successfully once, you can remove '{ alter: true }'.
+// { force: true } will DROP ALL TABLES and recreate them empty.
 // ----------------------------------------------------
 sequelize.authenticate()
   .then(() => {
     console.log('✅ PostgreSQL Connected');
+    // DANGER ZONE: This wipes the database
     return sequelize.sync({ alter: true }); 
   })
-  .then(() => console.log('✅ Tables Synced'))
+  .then(() => console.log('✅ Tables synced'))
   .catch(err => console.error('❌ DB Error:', err));
 
 

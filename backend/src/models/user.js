@@ -22,6 +22,17 @@ const User = sequelize.define('User', {
   password: {
     type: DataTypes.STRING,
     allowNull: false
+  },
+  // --- NEW: Security fields for "Forgot Password" ---
+  securityQuestion: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'What is your childhood pet\'s name?' 
+  },
+  securityAnswer: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'none'
   }
 });
 
