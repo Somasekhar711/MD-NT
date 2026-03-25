@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:flutter_alarm_clock/flutter_alarm_clock.dart'; // NEW NATIVE ALARM PACKAGE
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:intl/intl.dart';
 
 class MedicineReminderPage extends StatefulWidget {
   const MedicineReminderPage({super.key});
@@ -11,7 +12,7 @@ class MedicineReminderPage extends StatefulWidget {
 }
 
 class _MedicineReminderPageState extends State<MedicineReminderPage> {
-  final Color primaryColor = const Color.fromARGB(255, 0, 132, 255);
+  final Color medicalBlue = const Color.fromARGB(255, 0, 132, 255);
   List<Map<String, dynamic>> _reminders = [];
 
   @override
@@ -20,345 +21,340 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
     _loadReminders();
   }
 
+  // --- DATA LOGIC ---
   Future<void> _loadReminders() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? savedData = prefs.getString('medicine_reminders_v2');
-
+    final String? savedData = prefs.getString('medicine_reminders_v3');
     if (savedData != null) {
-      try {
-        setState(() {
-          _reminders = List<Map<String, dynamic>>.from(jsonDecode(savedData));
-        });
-      } catch (e) {
-        print("Error loading data: $e");
-      }
+      setState(
+        () =>
+            _reminders = List<Map<String, dynamic>>.from(jsonDecode(savedData)),
+      );
     }
   }
 
   Future<void> _saveReminders() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('medicine_reminders_v2', jsonEncode(_reminders));
+    await prefs.setString('medicine_reminders_v3', jsonEncode(_reminders));
   }
 
-  void _addReminder(String name, List<TimeOfDay> times) {
-    List<Map<String, dynamic>> formattedTimes = times.map((t) {
-      int id =
-          DateTime.now().millisecondsSinceEpoch.remainder(100000) +
-          t.hour +
-          t.minute;
-
-      // 🔥 OPEN NATIVE CLOCK APP 🔥
-      FlutterAlarmClock.createAlarm(
-        hour: t.hour,
-        minutes: t.minute,
-        title: "Medicine: $name",
-      );
-
-      return {'hour': t.hour, 'minute': t.minute, 'id': id};
-    }).toList();
-
+  void _toggleTaken(int index) {
+    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     setState(() {
-      _reminders.add({'name': name, 'times': formattedTimes});
+      if (_reminders[index]['lastTakenDate'] == today) {
+        _reminders[index]['lastTakenDate'] = "";
+        _reminders[index]['stockCount']++;
+      } else {
+        _reminders[index]['lastTakenDate'] = today;
+        if (_reminders[index]['stockCount'] > 0)
+          _reminders[index]['stockCount']--;
+      }
     });
     _saveReminders();
   }
 
-  void _snoozeTime(int medicineIndex, int timeIndex) {
-    var timeData = _reminders[medicineIndex]['times'][timeIndex];
-    int h = timeData['hour'];
-    int m = timeData['minute'];
-
-    m += 10;
-    if (m >= 60) {
-      h += 1;
-      m -= 60;
-    }
-    if (h >= 24) h -= 24;
-
-    int newId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-
-    // 🔥 SNOOZE VIA NATIVE CLOCK APP 🔥
-    FlutterAlarmClock.createAlarm(
-      hour: h,
-      minutes: m,
-      title: "Snooze: ${_reminders[medicineIndex]['name']}",
-    );
-
-    setState(() {
-      _reminders[medicineIndex]['times'][timeIndex] = {
-        'hour': h,
-        'minute': m,
-        'id': newId,
-      };
-    });
-    _saveReminders();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Snoozed! (Sent to Clock App)')),
-    );
-  }
-
-  void _deleteReminder(int index) {
-    setState(() {
-      _reminders.removeAt(index);
-    });
-    _saveReminders();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Medicine deleted from tracker')),
+  // 🔥 NEW: DELETE CONFIRMATION POPUP 🔥
+  void _confirmDelete(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Reminder?'),
+        content: const Text(
+          'This removes the medicine from your list. \n\n'
+          '⚠️ IMPORTANT: You must manually delete the repeating alarm from your phone\'s Clock app.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              setState(() => _reminders.removeAt(index));
+              _saveReminders();
+              Navigator.pop(context);
+              // Open clock immediately after delete to help the user
+              const AndroidIntent(
+                action: 'android.intent.action.SHOW_ALARMS',
+              ).launch();
+            },
+            child: const Text(
+              'Delete & Open Clock',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  void _showAddDialog() {
-    final TextEditingController nameController = TextEditingController();
-    List<TimeOfDay> selectedTimes = [TimeOfDay.now()];
+  // --- UI DIALOG (Add/Edit) ---
+  void _showMedDialog({int? index}) {
+    final bool isEditing = index != null;
+    final nameController = TextEditingController(
+      text: isEditing ? _reminders[index]['name'] : "",
+    );
+    final stockController = TextEditingController(
+      text: isEditing ? _reminders[index]['stockCount'].toString() : "30",
+    );
+    String selectedType = isEditing ? _reminders[index]['type'] : 'Pill';
+    String selectedInstruction = isEditing
+        ? _reminders[index]['instruction']
+        : 'Before Food';
+    List<TimeOfDay> selectedTimes = isEditing
+        ? (_reminders[index]['times'] as List)
+              .map((t) => TimeOfDay(hour: t['hour'], minute: t['minute']))
+              .toList()
+        : [TimeOfDay.now()];
 
     showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Add Medicine'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Medicine Name',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Tap a time to edit it:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-
-                  Wrap(
-                    spacing: 8.0,
-                    children: List.generate(selectedTimes.length, (index) {
-                      return InputChip(
-                        label: Text(selectedTimes[index].format(context)),
-                        avatar: const Icon(Icons.edit, size: 16),
-                        onPressed: () async {
-                          final TimeOfDay? picked = await showTimePicker(
-                            context: context,
-                            initialTime: selectedTimes[index],
-                          );
-                          if (picked != null) {
-                            setDialogState(() => selectedTimes[index] = picked);
-                          }
-                        },
-                        deleteIcon: const Icon(Icons.cancel, size: 18),
-                        onDeleted: selectedTimes.length > 1
-                            ? () {
-                                setDialogState(
-                                  () => selectedTimes.removeAt(index),
-                                );
-                              }
-                            : null,
-                      );
-                    }),
-                  ),
-
-                  const SizedBox(height: 10),
-                  TextButton.icon(
-                    onPressed: () async {
-                      final TimeOfDay? picked = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      if (picked != null && !selectedTimes.contains(picked)) {
-                        setDialogState(() => selectedTimes.add(picked));
-                      }
-                    },
-                    icon: Icon(Icons.add_alarm, color: primaryColor),
-                    label: Text(
-                      "Add Another Time",
-                      style: TextStyle(color: primaryColor),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.grey),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            isEditing ? 'Edit Medicine' : 'Add Medicine',
+            style: TextStyle(color: medicalBlue),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Medicine Name',
+                    border: OutlineInputBorder(),
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.trim().isNotEmpty) {
-                      _addReminder(nameController.text.trim(), selectedTimes);
-                      Navigator.pop(context);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedType,
+                        items: ['Pill', 'Syrup', 'Injection']
+                            .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)),
+                            )
+                            .toList(),
+                        onChanged: (val) =>
+                            setDialogState(() => selectedType = val!),
+                        decoration: const InputDecoration(
+                          labelText: 'Type',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: stockController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Stock Qty',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: selectedInstruction,
+                  items: ['Before Food', 'After Food', 'Empty Stomach']
+                      .map((i) => DropdownMenuItem(value: i, child: Text(i)))
+                      .toList(),
+                  onChanged: (val) =>
+                      setDialogState(() => selectedInstruction = val!),
+                  decoration: const InputDecoration(
+                    labelText: 'Instruction',
+                    border: OutlineInputBorder(),
                   ),
-                  child: const Text(
-                    'Save & Set Alarm',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                ),
+                const SizedBox(height: 15),
+                Wrap(
+                  spacing: 8,
+                  children: selectedTimes
+                      .asMap()
+                      .entries
+                      .map(
+                        (e) => InputChip(
+                          label: Text(e.value.format(context)),
+                          onPressed: () async {
+                            final p = await showTimePicker(
+                              context: context,
+                              initialTime: e.value,
+                            );
+                            if (p != null)
+                              setDialogState(() => selectedTimes[e.key] = p);
+                          },
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
-            );
-          },
-        );
-      },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: medicalBlue),
+              onPressed: () {
+                final name = nameController.text.trim();
+                final stock = int.tryParse(stockController.text) ?? 0;
+                if (name.isNotEmpty) {
+                  for (var t in selectedTimes) {
+                    AndroidIntent(
+                      action: 'android.intent.action.SET_ALARM',
+                      arguments: <String, dynamic>{
+                        'android.intent.extra.alarm.HOUR': t.hour,
+                        'android.intent.extra.alarm.MINUTES': t.minute,
+                        'android.intent.extra.alarm.MESSAGE':
+                            "[$selectedInstruction] $name",
+                        'android.intent.extra.alarm.DAYS': [
+                          1,
+                          2,
+                          3,
+                          4,
+                          5,
+                          6,
+                          7,
+                        ],
+                        'android.intent.extra.alarm.SKIP_UI': true,
+                      },
+                    ).launch();
+                  }
+                  setState(() {
+                    final data = {
+                      'name': name,
+                      'type': selectedType,
+                      'instruction': selectedInstruction,
+                      'stockCount': stock,
+                      'lastTakenDate': isEditing
+                          ? _reminders[index]['lastTakenDate']
+                          : "",
+                      'times': selectedTimes
+                          .map((t) => {'hour': t.hour, 'minute': t.minute})
+                          .toList(),
+                    };
+                    isEditing ? _reminders[index] = data : _reminders.add(data);
+                  });
+                  _saveReminders();
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Medicine Reminders',
-          style: TextStyle(color: Colors.white),
+          'My Pharmacy',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: primaryColor,
+        backgroundColor: medicalBlue,
+        centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
+      // 🔥 RESTORED: EMPTY STATE LABEL 🔥
       body: _reminders.isEmpty
-          ? const Center(
-              child: Text(
-                'No medicines scheduled.\nTap + to add one.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.grey),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.medical_information_outlined,
+                    size: 100,
+                    color: Colors.grey.withOpacity(0.3),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Your medicine list is empty.\nTap the + button to stay on track!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _reminders.length,
               itemBuilder: (context, index) {
-                final reminder = _reminders[index];
-                List<dynamic> timesList = reminder['times'];
+                final r = _reminders[index];
+                bool isTaken = r['lastTakenDate'] == today;
+                bool lowStock = r['stockCount'] <= 5;
 
                 return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.only(bottom: 16),
+                  elevation: isTaken ? 1 : 4,
+                  color: isTaken ? Colors.green.shade50 : Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: primaryColor.withOpacity(
-                                    0.2,
-                                  ),
-                                  child: Icon(
-                                    Icons.medical_services,
-                                    color: primaryColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 15),
-                                Text(
-                                  reminder['name'],
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
-                              ),
-                              onPressed: () => _deleteReminder(index),
-                            ),
-                          ],
+                  child: ListTile(
+                    leading: IconButton(
+                      icon: Icon(
+                        isTaken
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color: isTaken ? Colors.green : Colors.grey,
+                        size: 30,
+                      ),
+                      onPressed: () => _toggleTaken(index),
+                    ),
+                    title: Text(
+                      r['name'],
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        decoration: isTaken ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "${r['instruction']} • Stock: ${r['stockCount']}",
+                    ),
+                    trailing: PopupMenuButton(
+                      onSelected: (val) => val == 'edit'
+                          ? _showMedDialog(index: index)
+                          : _confirmDelete(index),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text(
+                            'Delete',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Divider(),
-                        ),
-
-                        ...timesList.asMap().entries.map((entry) {
-                          int timeIndex = entry.key;
-                          var t = entry.value;
-                          TimeOfDay displayTime = TimeOfDay(
-                            hour: t['hour'],
-                            minute: t['minute'],
-                          );
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.access_time,
-                                      size: 20,
-                                      color: Colors.grey,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      displayTime.format(context),
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: () =>
-                                      _snoozeTime(index, timeIndex),
-                                  icon: const Icon(
-                                    Icons.snooze,
-                                    size: 18,
-                                    color: Colors.orange,
-                                  ),
-                                  label: const Text(
-                                    'Snooze',
-                                    style: TextStyle(color: Colors.orange),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(
-                                      color: Colors.orange,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 0,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
                       ],
                     ),
                   ),
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddDialog,
-        backgroundColor: primaryColor,
-        icon: const Icon(Icons.alarm_add, color: Colors.white),
-        label: const Text('Add Pill', style: TextStyle(color: Colors.white)),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showMedDialog(),
+        backgroundColor: medicalBlue,
+        child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
     );
   }
