@@ -3,20 +3,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:md_nt/authentication/login_page.dart';
 import 'package:md_nt/home/dashboard.dart';
 
+// Notice how the notification_service import is gone!
+
 void main() async {
   // 1. Ensures Flutter is ready to use platform plugins like shared_preferences
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 2. Open the storage and look for saved user data
+
   final prefs = await SharedPreferences.getInstance();
   final String? token = prefs.getString('token');
   final String? userName = prefs.getString('userName');
 
-  // 3. Start the app with the retrieved data
-  runApp(MyApp(
-    savedToken: token,
-    savedName: userName,
-  ));
+  // 2. Start the app with the retrieved data
+  runApp(MyApp(savedToken: token, savedName: userName));
 }
 
 class MyApp extends StatefulWidget {
@@ -34,8 +32,9 @@ class _MyAppState extends State<MyApp> {
 
   void toggleTheme() {
     setState(() {
-      _themeMode =
-          _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+      _themeMode = _themeMode == ThemeMode.light
+          ? ThemeMode.dark
+          : ThemeMode.light;
     });
   }
 
@@ -47,17 +46,12 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
 
-      // 4. If token exists, go to Dashboard. Otherwise, go to Login.
+      // 3. If token exists, go to Dashboard. Otherwise, go to Login.
       home: (widget.savedToken != null && widget.savedName != null)
-          ? DashboardPage(
-              toggleTheme: toggleTheme,
-              userName: widget.savedName!,
-            )
+          ? DashboardPage(toggleTheme: toggleTheme, userName: widget.savedName!)
           : LoginPage(toggleTheme: toggleTheme),
 
-      routes: {
-        '/login': (context) => LoginPage(toggleTheme: toggleTheme),
-      },
+      routes: {'/login': (context) => LoginPage(toggleTheme: toggleTheme)},
     );
   }
 }

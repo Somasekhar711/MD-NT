@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:md_nt/authentication/login_page.dart';
 import 'package:md_nt/home/add_report_page.dart';
 import 'package:md_nt/home/report_gallery_page.dart';
+import 'package:md_nt/home/medicine_reminder.dart'; // <--- NEW IMPORT ADDED HERE
 
 class DashboardPage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -18,58 +19,56 @@ class _DashboardPageState extends State<DashboardPage> {
   
   // This function shows the "Add" and "View" options as a Bottom Sheet
   void _showMedicalOptions(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    // This allows the sheet to be as small as possible
-    isScrollControlled: true, 
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (context) {
-      return Padding(
-        // Adds padding to avoid the navigation bar at the bottom of the phone
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          top: 20,
-          left: 20,
-          right: 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // This is the most important line!
-          children: [
-            const Text(
-              "Medical Digitizer",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            ListTile(
-              leading: const Icon(Icons.add_a_photo, color: Colors.blue),
-              title: const Text("Add New Report"),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AddReportPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.folder_shared, color: Colors.green),
-              title: const Text("View Saved Reports"),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ReportGalleryPage()),
-                );
-              },
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, 
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, 
+            children: [
+              const Text(
+                "Medical Digitizer",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                leading: const Icon(Icons.add_a_photo, color: Colors.blue),
+                title: const Text("Add New Report"),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => AddReportPage()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder_shared, color: Colors.green),
+                title: const Text("View Saved Reports"),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ReportGalleryPage()),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +129,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Welcome to MediNutrition!', 
+              'Manage your medical history efficiently.', 
               textAlign: TextAlign.center, 
               style: TextStyle(fontSize: 16)
             ),
@@ -149,16 +148,19 @@ class _DashboardPageState extends State<DashboardPage> {
             
             const SizedBox(height: 20),
             
-            // Nutrition Tracker Action Button
+            // --- NEW: Medicine Reminders Button ---
             ElevatedButton.icon(
               onPressed: () {
-                // Future Implementation
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MedicineReminderPage()),
+                );
               },
-              icon: const Icon(Icons.food_bank, color: Colors.white),
-              label: const Text('Nutrition Tracker', style: TextStyle(color: Colors.white)),
+              icon: const Icon(Icons.alarm_add, color: Colors.white),
+              label: const Text('Medicine Reminders', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50), 
-                backgroundColor: Colors.blue
+                backgroundColor: Colors.green, // Different color to stand out
               ),
             ),
           ],
