@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'register_page.dart';
@@ -42,7 +43,7 @@ class _LoginPageState extends State<LoginPage> {
           'email': emailController.text.trim(),
           'password': passwordController.text,
         }),
-      );
+      ).timeout(const Duration(seconds: 12));
 
       final data = jsonDecode(response.body);
 
@@ -53,6 +54,7 @@ class _LoginPageState extends State<LoginPage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setString('userName', data['user']['name']);
+        await prefs.setString('userId', data['user']['id'].toString());
 
         if (mounted) {
           Navigator.pushReplacement(
@@ -71,6 +73,12 @@ class _LoginPageState extends State<LoginPage> {
             SnackBar(content: Text(data['message'] ?? 'Login failed')),
           );
         }
+      }
+    } on TimeoutException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Server timeout. Check your PC IP and network connection.')),
+        );
       }
     } catch (e) {
       if (mounted) {

@@ -2,18 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:md_nt/authentication/login_page.dart';
 import 'package:md_nt/home/dashboard.dart';
-
-// Notice how the notification_service import is gone!
+import 'package:md_nt/services/notification_service.dart';
 
 void main() async {
-  // 1. Ensures Flutter is ready to use platform plugins like shared_preferences
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.instance.initialize();
 
   final prefs = await SharedPreferences.getInstance();
   final String? token = prefs.getString('token');
   final String? userName = prefs.getString('userName');
 
-  // 2. Start the app with the retrieved data
   runApp(MyApp(savedToken: token, savedName: userName));
 }
 
@@ -46,7 +44,6 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
 
-      // 3. If token exists, go to Dashboard. Otherwise, go to Login.
       home: (widget.savedToken != null && widget.savedName != null)
           ? DashboardPage(toggleTheme: toggleTheme, userName: widget.savedName!)
           : LoginPage(toggleTheme: toggleTheme),

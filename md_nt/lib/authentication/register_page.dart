@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert'; // For JSON encoding
 import 'package:http/http.dart' as http; // For making requests
 import 'package:md_nt/config.dart';
@@ -103,7 +104,7 @@ class _RegisterPageState extends State<RegisterPage> {
           'securityQuestion': _selectedQuestion,
           'securityAnswer': securityAnswer, 
         }),
-      );
+      ).timeout(const Duration(seconds: 12));
 
       // --- 3. Handle Response ---
       if (response.statusCode == 201) {
@@ -113,8 +114,10 @@ class _RegisterPageState extends State<RegisterPage> {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         showSnack(responseData['message'] ?? 'Registration failed');
       }
+    } on TimeoutException {
+      showSnack('Server timeout. Check your PC IP, hotspot/Wi-Fi, and backend.');
     } catch (e) {
-      showSnack('Connection Error: Is the server running?');
+      showSnack('Connection Error: Check server, IP, and that both devices are on the same network.');
       print("Error: $e");
     } finally {
       if (mounted) {

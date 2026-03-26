@@ -60,7 +60,17 @@ class _AddReportPageState extends State<AddReportPage> {
 
     setState(() => _isLoading = true);
     final prefs = await SharedPreferences.getInstance();
-    final String userId = prefs.getString('userId') ?? "1"; 
+    final String? userId = prefs.getString('userId');
+
+    if (userId == null || userId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Session data missing. Please login again.")),
+        );
+      }
+      setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       var request = http.MultipartRequest(

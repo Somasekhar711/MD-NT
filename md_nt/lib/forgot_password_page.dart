@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:md_nt/config.dart';
@@ -43,7 +44,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         Uri.parse(url),
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode({'email': email}),
-      );
+      ).timeout(const Duration(seconds: 12));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -54,6 +55,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       } else {
         showSnack('User not found. Check your email.');
       }
+    } on TimeoutException {
+      showSnack('Server timeout. Check your PC IP and network connection.');
     } catch (e) {
       showSnack('Connection Error. Is the server running?');
     } finally {
@@ -93,7 +96,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           'answer': answer,
           'newPassword': newPassword
         }),
-      );
+      ).timeout(const Duration(seconds: 12));
 
       if (response.statusCode == 200) {
         showSnack('Password reset successfully! Please login.');
@@ -102,6 +105,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         final data = jsonDecode(response.body);
         showSnack(data['message'] ?? 'Failed to reset password');
       }
+    } on TimeoutException {
+      showSnack('Server timeout. Check your PC IP and network connection.');
     } catch (e) {
       showSnack('Connection Error.');
     } finally {
