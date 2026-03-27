@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:md_nt/authentication/login_page.dart';
 import 'package:md_nt/home/add_report_page.dart';
 import 'package:md_nt/home/report_gallery_page.dart';
-import 'package:md_nt/home/medicine_reminder.dart'; // <--- NEW IMPORT ADDED HERE
+import 'package:md_nt/home/medicine_reminder.dart';
+import 'package:md_nt/home/appointment_reminder.dart';
 
 class DashboardPage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -117,11 +118,16 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Image.asset(
+              'branding_meditrack_logo.png',
+              height: 190,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 16),
             Text(
               'Welcome back, ${widget.userName}!',
               textAlign: TextAlign.center,
@@ -129,26 +135,21 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Manage your medical history efficiently.', 
-              textAlign: TextAlign.center, 
-              style: TextStyle(fontSize: 16)
+              'Manage your medical history efficiently.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
             ),
-            const SizedBox(height: 40),
-            
-            // Medical Reports Action Button
+            const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () => _showMedicalOptions(context), 
+              onPressed: () => _showMedicalOptions(context),
               icon: const Icon(Icons.medical_services, color: Colors.white),
               label: const Text('Medical Reports', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50), 
-                backgroundColor: Colors.blue
+                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Colors.blue,
               ),
             ),
-            
             const SizedBox(height: 20),
-            
-            // --- NEW: Medicine Reminders Button ---
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.push(
@@ -159,8 +160,28 @@ class _DashboardPageState extends State<DashboardPage> {
               icon: const Icon(Icons.alarm_add, color: Colors.white),
               label: const Text('Medicine Reminders', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50), 
-                backgroundColor: Colors.green, // Different color to stand out
+                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AppointmentReminderPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.calendar_month, color: Colors.white),
+              label: const Text(
+                'Appointment Reminders',
+                style: TextStyle(color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Colors.orange,
               ),
             ),
           ],

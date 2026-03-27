@@ -14,7 +14,7 @@
 <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
     <application
-        android:label="md_nt"
+        android:label="MediTrack"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

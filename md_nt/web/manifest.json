@@ -1,6 +1,6 @@
 {
-    "name": "md_nt",
-    "short_name": "md_nt",
+    "name": "MediTrack",
+    "short_name": "MediTrack",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
