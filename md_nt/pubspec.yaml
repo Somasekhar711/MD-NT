@@ -31,11 +31,6 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.6.0
-<<<<<<< HEAD
-  shared_preferences: ^2.0.15
-  flutter_alarm_clock: ^0.1.2
-  android_intent_plus: ^6.0.0
-=======
   shared_preferences: ^2.5.5
   android_intent_plus: ^5.3.1
   flutter_local_notifications: ^17.2.4
@@ -45,13 +40,11 @@ dependencies:
   pdf: ^3.11.3
   share_plus: ^10.1.4
   timezone: ^0.9.4
->>>>>>> 0c81094 (Completed medicine reminder and added export option to medical reports digitizer)
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   image_picker: ^1.2.1
-  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
