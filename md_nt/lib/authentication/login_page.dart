@@ -7,6 +7,7 @@ import 'package:md_nt/home/dashboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:md_nt/config.dart';
 import 'package:md_nt/forgot_password_page.dart'; // Import is here!
+import 'package:md_nt/theme/app_colors.dart';
 
 class LoginPage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -96,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Login', style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color.fromARGB(255, 0, 132, 255),
+        backgroundColor: AppColors.primary,
         actions: [
           IconButton(
             icon: const Icon(Icons.brightness_6),
@@ -123,7 +124,7 @@ class _LoginPageState extends State<LoginPage> {
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 0, 132, 255),
+                    color: AppColors.primary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -163,7 +164,7 @@ class _LoginPageState extends State<LoginPage> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 0, 132, 255),
+                    backgroundColor: AppColors.primary,
                     minimumSize: const Size(double.infinity, 50),
                   ),
                   child: _isLoading
@@ -192,7 +193,7 @@ class _LoginPageState extends State<LoginPage> {
                   child: const Text(
                     'Forgot Password?',
                     style: TextStyle(
-                        color: Colors.blue, fontWeight: FontWeight.w600),
+                        color: AppColors.primary, fontWeight: FontWeight.w600),
                   ),
                 ),
                 TextButton(
@@ -202,7 +203,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: const Text(
                     'New user? Register here',
-                    style: TextStyle(color: Colors.blue),
+                    style: TextStyle(color: AppColors.primary),
                   ),
                 ),
               ],

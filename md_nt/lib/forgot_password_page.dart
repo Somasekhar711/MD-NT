@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:md_nt/config.dart';
+import 'package:md_nt/theme/app_colors.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -17,7 +18,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final TextEditingController newPasswordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
 
-  final Color primaryColor = const Color.fromARGB(255, 0, 132, 255);
+  final Color primaryColor = AppColors.primary;
 
   bool _isLoading = false;
   int _step = 1; // Step 1: Enter Email. Step 2: Answer & Reset.
@@ -176,7 +177,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 const Divider(height: 40, thickness: 2),
                 Text(
                   'Security Question:\n$_securityQuestion',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 15),
@@ -211,7 +216,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : resetPassword,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green, // Different color for success action
+                    backgroundColor: AppColors.success,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                   ),
                   child: _isLoading

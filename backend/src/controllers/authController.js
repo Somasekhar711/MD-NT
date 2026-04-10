@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); // Moved to the top for a cleaner file!
 const User = require('../models/user'); 
+const jwtSecret = process.env.JWT_SECRET;
 
 // Logic for Registering a new user
 exports.register = async (req, res) => {
@@ -14,9 +15,10 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // 3. Hash the password (security!)
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // 3. Hash sensitive values (security!)
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const normalizedSecurityAnswer = (securityAnswer || 'none').trim().toLowerCase();
+    const hashedSecurityAnswer = await bcrypt.hash(normalizedSecurityAnswer, 10);
 
     // 4. Create the new user in the database (Now with security fields)
     const newUser = await User.create({
@@ -24,7 +26,7 @@ exports.register = async (req, res) => {
       email,
       password: hashedPassword,
       securityQuestion: securityQuestion || "What is your childhood pet's name?", // Fallback default
-      securityAnswer: securityAnswer ? securityAnswer.toLowerCase() : "none" // Saved in lowercase to prevent typos
+      securityAnswer: hashedSecurityAnswer
     });
 
     // 5. Send success message back to Flutter
@@ -46,6 +48,10 @@ exports.register = async (req, res) => {
 // Logic for Login
 exports.login = async (req, res) => {
   try {
+    if (!jwtSecret || !jwtSecret.trim()) {
+      return res.status(500).json({ message: 'JWT secret is not configured' });
+    }
+
     const { email, password } = req.body;
 
     // 1. Check if user exists
@@ -61,7 +67,7 @@ exports.login = async (req, res) => {
     }
 
     // 3. Generate a Token (The "VIP Badge")
-    const token = jwt.sign({ id: user.id }, 'YOUR_SECRET_KEY', { expiresIn: '1h' });
+    const token = jwt.sign({ id: user.id }, jwtSecret, { expiresIn: '1h' });
 
     res.json({
       message: 'Login successful',
@@ -107,14 +113,29 @@ exports.resetPassword = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // 2. Check if the answer matches (converted to lowercase for safety)
-    if (user.securityAnswer !== answer.toLowerCase()) {
+    const submittedAnswer = (answer || '').trim().toLowerCase();
+    if (!submittedAnswer) {
+      return res.status(400).json({ message: 'Answer is required' });
+    }
+
+    const storedAnswer = String(user.securityAnswer || '');
+    const isHashedAnswer = storedAnswer.startsWith('$2a$') ||
+      storedAnswer.startsWith('$2b$') ||
+      storedAnswer.startsWith('$2y$');
+    const isValidAnswer = isHashedAnswer
+      ? await bcrypt.compare(submittedAnswer, storedAnswer)
+      : storedAnswer === submittedAnswer;
+
+    // 2. Check if the answer matches (supports old plaintext rows too)
+    if (!isValidAnswer) {
       return res.status(400).json({ message: 'Incorrect security answer' });
     }
 
-    // 3. Hash the new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+    // 3. Hash the new password and upgrade legacy plaintext answers.
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    if (!isHashedAnswer) {
+      user.securityAnswer = await bcrypt.hash(submittedAnswer, 10);
+    }
 
     // 4. Update the user's password in the database
     user.password = hashedNewPassword;

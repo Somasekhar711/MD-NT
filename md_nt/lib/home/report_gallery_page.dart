@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:md_nt/config.dart';
+import 'package:md_nt/theme/app_colors.dart';
 
 class ReportGalleryPage extends StatefulWidget {
   const ReportGalleryPage({super.key});
@@ -32,12 +33,22 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
     fetchReports();
   }
 
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+    return token;
+  }
+
   // --- 1. Fetch Data from Node.js ---
   Future<void> fetchReports() async {
     final prefs = await SharedPreferences.getInstance();
     final String? userId = prefs.getString('userId');
+    final String? token = await _getToken();
 
-    if (userId == null || userId.isEmpty) {
+    if (userId == null || userId.isEmpty || token == null) {
       setState(() {
         _errorMessage = 'Session data missing. Please login again.';
         _isLoading = false;
@@ -48,6 +59,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
     try {
       final response = await http.get(
         Uri.parse('${AppConfig.baseUrl}/reports/$userId'),
+        headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 12));
 
       if (response.statusCode == 200) {
@@ -75,10 +87,24 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
 
   Future<void> _deleteReport(Map<String, dynamic> report) async {
     setState(() => _isMutating = true);
+    final String? token = await _getToken();
+
+    if (token == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session expired. Please login again.')),
+        );
+        setState(() => _isMutating = false);
+      }
+      return;
+    }
 
     try {
       final response = await http
-          .delete(Uri.parse('${AppConfig.baseUrl}/reports/${report['id']}'))
+          .delete(
+            Uri.parse('${AppConfig.baseUrl}/reports/${report['id']}'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
           .timeout(const Duration(seconds: 12));
 
       if (!mounted) return;
@@ -126,7 +152,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
@@ -181,7 +207,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
                 const SizedBox(height: 12),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.calendar_today, color: Colors.blue),
+                  leading: const Icon(Icons.calendar_today, color: AppColors.primary),
                   title: Text('Date: ${selectedDate.toIso8601String().split('T')[0]}'),
                   onTap: () async {
                     final picked = await showDatePicker(
@@ -260,17 +286,17 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(Icons.person_outline, color: Colors.blue),
+              leading: const Icon(Icons.person_outline, color: AppColors.primary),
               title: const Text('Export by Doctor'),
               onTap: () => Navigator.pop(context, 'doctor'),
             ),
             ListTile(
-              leading: const Icon(Icons.local_hospital_outlined, color: Colors.green),
+              leading: const Icon(Icons.local_hospital_outlined, color: AppColors.success),
               title: const Text('Export by Disease'),
               onTap: () => Navigator.pop(context, 'disease'),
             ),
             ListTile(
-              leading: const Icon(Icons.business_outlined, color: Colors.orange),
+              leading: const Icon(Icons.business_outlined, color: AppColors.warning),
               title: const Text('Export by Hospital'),
               onTap: () => Navigator.pop(context, 'hospital'),
             ),
@@ -374,75 +400,136 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
       );
       final serverUrl = 'http://${AppConfig.ipAddress}:5000/';
       final pdf = pw.Document();
-      final cards = <pw.Widget>[];
+      final generatedAt = DateTime.now();
 
-      for (final report in matchingReports) {
+      final sortedReports = [...matchingReports]
+        ..sort(
+          (a, b) => (b['reportDate'] ?? '')
+              .toString()
+              .compareTo((a['reportDate'] ?? '').toString()),
+        );
+
+      for (var i = 0; i < sortedReports.length; i++) {
+        final report = sortedReports[i];
         final imagePath = (report['imageUrl'] ?? '').toString().replaceAll('\\', '/');
         final imageUrl = '$serverUrl$imagePath';
         final imageBytes = await _fetchImageBytes(imageUrl);
         final imageWidget = imageBytes == null
             ? pw.Container(
-                height: 140,
+                height: 420,
                 alignment: pw.Alignment.center,
                 color: PdfColors.grey300,
                 child: pw.Text('Image not available'),
               )
             : pw.Image(
                 pw.MemoryImage(imageBytes),
-                height: 180,
+                height: 420,
                 fit: pw.BoxFit.contain,
               );
 
-        cards.add(
-          pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 16),
-            padding: const pw.EdgeInsets.all(12),
-            decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: PdfColors.blueGrey200),
-              borderRadius: pw.BorderRadius.circular(8),
-            ),
-            child: pw.Column(
+        pdf.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(24),
+            build: (context) => pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text(
-                  'Doctor: ${report['doctorName'] ?? ''}',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(14),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.blue50,
+                    borderRadius: pw.BorderRadius.circular(10),
+                    border: pw.Border.all(color: PdfColors.blue300, width: 0.7),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'MediTrack - Medical Report',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                      pw.SizedBox(height: 6),
+                      pw.Text(
+                        'Filter: ${exportType[0].toUpperCase()}${exportType.substring(1)} = $label',
+                        style: const pw.TextStyle(fontSize: 11),
+                      ),
+                      pw.Text(
+                        'Report ${i + 1} of ${sortedReports.length}',
+                        style: const pw.TextStyle(fontSize: 11),
+                      ),
+                      pw.Text(
+                        'Generated: ${generatedAt.toLocal().toString().split('.')[0]}',
+                        style: const pw.TextStyle(fontSize: 11),
+                      ),
+                    ],
                   ),
                 ),
-                pw.SizedBox(height: 6),
-                pw.Text('Hospital: ${report['hospitalName'] ?? ''}'),
-                pw.Text('Date: ${report['reportDate'] ?? ''}'),
-                pw.Text('Disease: ${report['disease'] ?? 'General'}'),
-                pw.SizedBox(height: 10),
-                imageWidget,
+                pw.SizedBox(height: 16),
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.blue600, width: 0.8),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            'Entry ${i + 1}',
+                            style: pw.TextStyle(
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.blue800,
+                            ),
+                          ),
+                          pw.Text(
+                            _formatReportDate(report['reportDate']),
+                            style: const pw.TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'Doctor: ${report['doctorName'] ?? '-'}',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                      pw.Text('Hospital: ${report['hospitalName'] ?? '-'}'),
+                      pw.Text('Condition: ${report['disease'] ?? 'General'}'),
+                      pw.SizedBox(height: 10),
+                      pw.Container(
+                        width: double.infinity,
+                        padding: const pw.EdgeInsets.all(4),
+                        decoration: pw.BoxDecoration(
+                          color: PdfColors.grey100,
+                          borderRadius: pw.BorderRadius.circular(6),
+                        ),
+                        child: imageWidget,
+                      ),
+                    ],
+                  ),
+                ),
+                pw.Spacer(),
+                pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Text(
+                    'Page ${i + 1} of ${sortedReports.length}',
+                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                  ),
+                ),
               ],
             ),
           ),
         );
       }
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          build: (context) => [
-            pw.Text(
-              'Medical Reports Export',
-              style: pw.TextStyle(
-                fontSize: 20,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Text('Export type: $exportType'),
-            pw.Text('Group: $label'),
-            pw.Text('Reports: ${matchingReports.length}'),
-            pw.SizedBox(height: 16),
-            ...cards,
-          ],
-        ),
-      );
 
       await file.writeAsBytes(await pdf.save());
 
@@ -477,6 +564,16 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
         .replaceAll(RegExp(r'^_|_$'), '');
   }
 
+  String _formatReportDate(dynamic rawDate) {
+    final text = (rawDate ?? '').toString();
+    if (text.isEmpty) return '-';
+    try {
+      return DateTime.parse(text).toIso8601String().split('T')[0];
+    } catch (_) {
+      return text;
+    }
+  }
+
   Future<Uint8List?> _fetchImageBytes(String imageUrl) async {
     try {
       final response = await http
@@ -501,12 +598,26 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
     required String reportDate,
   }) async {
     setState(() => _isMutating = true);
+    final String? token = await _getToken();
+
+    if (token == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session expired. Please login again.')),
+        );
+        setState(() => _isMutating = false);
+      }
+      return false;
+    }
 
     try {
       final response = await http
           .put(
             Uri.parse('${AppConfig.baseUrl}/reports/$reportId'),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
             body: jsonEncode({
               'doctorName': doctorName,
               'hospitalName': hospitalName,
@@ -605,7 +716,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("My Medical Vault"),
-        backgroundColor: Colors.blue,
+        backgroundColor: AppColors.primary,
         actions: [
           if (_isMutating)
             const Padding(
@@ -667,7 +778,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
                               )
                             ),
                             selected: _selectedDisease == disease,
-                            selectedColor: Colors.blue,
+                            selectedColor: AppColors.primary,
                             backgroundColor: Colors.grey.shade200,
                             onSelected: (bool selected) {
                               setState(() {
@@ -725,12 +836,15 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: Colors.blue.shade50,
+                                          color: AppColors.accent.withOpacity(0.14),
                                           borderRadius: BorderRadius.circular(5)
                                         ),
                                         child: Text(
                                           "Tag: $conditionTag", 
-                                          style: TextStyle(color: Colors.blue.shade700, fontSize: 12)
+                                          style: TextStyle(
+                                            color: AppColors.primaryDark,
+                                            fontSize: 12,
+                                          )
                                         ),
                                       ),
                                     ],

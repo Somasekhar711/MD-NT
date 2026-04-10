@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert'; // For JSON encoding
 import 'package:http/http.dart' as http; // For making requests
 import 'package:md_nt/config.dart';
+import 'package:md_nt/theme/app_colors.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -33,7 +34,7 @@ class _RegisterPageState extends State<RegisterPage> {
     'What was the name of your first school?'
   ];
 
-  final Color primaryColor = const Color.fromARGB(255, 0, 132, 255);
+  final Color primaryColor = AppColors.primary;
 
   void showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -150,10 +151,13 @@ class _RegisterPageState extends State<RegisterPage> {
         Icon(
           valid ? Icons.check_circle : Icons.cancel,
           size: 18,
-          color: valid ? Colors.green : Colors.red,
+          color: valid ? AppColors.success : AppColors.danger,
         ),
         const SizedBox(width: 6),
-        Text(text, style: TextStyle(color: valid ? Colors.green : Colors.red)),
+        Text(
+          text,
+          style: TextStyle(color: valid ? AppColors.success : AppColors.danger),
+        ),
       ],
     );
   }
@@ -331,7 +335,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     },
                     child: const Text(
                       'Already registered? Login',
-                      style: TextStyle(color: Colors.blue),
+                      style: TextStyle(color: AppColors.primary),
                     ),
                   ),
                 ],

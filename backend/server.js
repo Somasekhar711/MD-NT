@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const sequelize = require('./src/config/database');
 const upload = require('./src/middleware/upload');
+const authMiddleware = require('./src/middleware/auth');
 const Report = require('./src/models/report');
 require('./src/models/user');
 const authRoutes = require('./src/routes/authRoutes');
@@ -56,11 +58,19 @@ sequelize
 app.use('/api/auth', authRoutes);
 
 // Get all reports for a specific user
-app.get('/api/auth/reports/:userId', async (req, res) => {
+app.get('/api/auth/reports/:userId', authMiddleware, async (req, res) => {
   try {
-    const { userId } = req.params;
+    const requestedUserId = Number(req.params.userId);
+    if (!Number.isInteger(requestedUserId)) {
+      return res.status(400).json({ message: 'Invalid user id' });
+    }
+
+    if (req.user.id !== requestedUserId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
     const reports = await Report.findAll({
-      where: { userId },
+      where: { userId: req.user.id },
       order: [['reportDate', 'DESC']],
     });
     res.json(reports);
@@ -71,9 +81,9 @@ app.get('/api/auth/reports/:userId', async (req, res) => {
 });
 
 // Add report route
-app.post('/api/auth/add-report', upload.single('reportImage'), async (req, res) => {
+app.post('/api/auth/add-report', authMiddleware, upload.single('reportImage'), async (req, res) => {
   try {
-    const { doctorName, hospitalName, reportDate, disease, userId } = req.body;
+    const { doctorName, hospitalName, reportDate, disease } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: 'Image is required' });
@@ -85,7 +95,7 @@ app.post('/api/auth/add-report', upload.single('reportImage'), async (req, res) 
       reportDate,
       disease: disease || 'General',
       imageUrl: req.file.path,
-      userId: parseInt(userId, 10),
+      userId: req.user.id,
     });
 
     res.status(201).json({ message: 'Report Digitized!', report: newReport });
@@ -96,7 +106,7 @@ app.post('/api/auth/add-report', upload.single('reportImage'), async (req, res) 
 });
 
 // Update report details
-app.put('/api/auth/reports/:id', async (req, res) => {
+app.put('/api/auth/reports/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { doctorName, hospitalName, reportDate, disease } = req.body;
@@ -104,6 +114,9 @@ app.put('/api/auth/reports/:id', async (req, res) => {
     const report = await Report.findByPk(id);
     if (!report) {
       return res.status(404).json({ message: 'Report not found' });
+    }
+    if (Number(report.userId) !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     report.doctorName = doctorName ?? report.doctorName;
@@ -120,13 +133,16 @@ app.put('/api/auth/reports/:id', async (req, res) => {
 });
 
 // Delete report
-app.delete('/api/auth/reports/:id', async (req, res) => {
+app.delete('/api/auth/reports/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const report = await Report.findByPk(id);
 
     if (!report) {
       return res.status(404).json({ message: 'Report not found' });
+    }
+    if (Number(report.userId) !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     const normalizedImagePath = String(report.imageUrl || '').replaceAll('\\', '/');

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:md_nt/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:md_nt/theme/app_colors.dart';
 
 class MedicineReminderPage extends StatefulWidget {
   const MedicineReminderPage({super.key});
@@ -12,7 +13,7 @@ class MedicineReminderPage extends StatefulWidget {
 }
 
 class _MedicineReminderPageState extends State<MedicineReminderPage> {
-  final Color primaryColor = const Color.fromARGB(255, 0, 132, 255);
+  final Color primaryColor = AppColors.primary;
   List<Map<String, dynamic>> _reminders = [];
 
   @override
@@ -249,7 +250,7 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
@@ -360,7 +361,7 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
               ),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
               onPressed: () {
                 final name = nameController.text.trim();
                 if (name.isEmpty) {
@@ -526,14 +527,14 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
                                   icon: const Icon(
                                     Icons.snooze,
                                     size: 18,
-                                    color: Colors.orange,
+                                    color: AppColors.warning,
                                   ),
                                   label: const Text(
                                     'Snooze',
-                                    style: TextStyle(color: Colors.orange),
+                                    style: TextStyle(color: AppColors.warning),
                                   ),
                                   style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Colors.orange),
+                                    side: const BorderSide(color: AppColors.warning),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20),
                                     ),

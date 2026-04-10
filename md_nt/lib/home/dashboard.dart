@@ -5,6 +5,7 @@ import 'package:md_nt/home/add_report_page.dart';
 import 'package:md_nt/home/report_gallery_page.dart';
 import 'package:md_nt/home/medicine_reminder.dart';
 import 'package:md_nt/home/appointment_reminder.dart';
+import 'package:md_nt/theme/app_colors.dart';
 
 class DashboardPage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -43,7 +44,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               const SizedBox(height: 10),
               ListTile(
-                leading: const Icon(Icons.add_a_photo, color: Colors.blue),
+                leading: const Icon(Icons.add_a_photo, color: AppColors.primary),
                 title: const Text("Add New Report"),
                 onTap: () {
                   Navigator.pop(context);
@@ -54,7 +55,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.folder_shared, color: Colors.green),
+                leading: const Icon(Icons.folder_shared, color: AppColors.success),
                 title: const Text("View Saved Reports"),
                 onTap: () {
                   Navigator.pop(context);
@@ -76,19 +77,19 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
-        backgroundColor: Colors.blue,
+        backgroundColor: AppColors.primary,
       ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(color: Colors.blue),
+              decoration: const BoxDecoration(color: AppColors.primary),
               accountName: Text(widget.userName, style: const TextStyle(fontSize: 18)),
-              accountEmail: const Text("User Settings"),
-              currentAccountPicture: const CircleAvatar(
+                accountEmail: const Text("User Settings"),
+                currentAccountPicture: const CircleAvatar(
                 backgroundColor: Colors.white,
-                child: Icon(Icons.person, size: 40, color: Colors.blue),
+                child: Icon(Icons.person, size: 40, color: AppColors.primary),
               ),
             ),
             ListTile(
@@ -101,8 +102,8 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              leading: const Icon(Icons.logout, color: AppColors.danger),
+              title: const Text('Logout', style: TextStyle(color: AppColors.danger)),
               onTap: () async {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.clear();
@@ -131,7 +132,11 @@ class _DashboardPageState extends State<DashboardPage> {
             Text(
               'Welcome back, ${widget.userName}!',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.blue),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(height: 10),
             const Text(
@@ -146,7 +151,7 @@ class _DashboardPageState extends State<DashboardPage> {
               label: const Text('Medical Reports', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
-                backgroundColor: Colors.blue,
+                backgroundColor: AppColors.primary,
               ),
             ),
             const SizedBox(height: 20),
@@ -161,7 +166,7 @@ class _DashboardPageState extends State<DashboardPage> {
               label: const Text('Medicine Reminders', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
-                backgroundColor: Colors.green,
+                backgroundColor: AppColors.success,
               ),
             ),
             const SizedBox(height: 20),
@@ -181,7 +186,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
-                backgroundColor: Colors.orange,
+                backgroundColor: AppColors.warning,
               ),
             ),
           ],

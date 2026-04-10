@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:android_intent_plus/android_intent.dart'; // Handles the link to Calendar
 import 'package:intl/intl.dart';
+import 'package:md_nt/theme/app_colors.dart';
 
 class AppointmentReminderPage extends StatefulWidget {
   const AppointmentReminderPage({super.key});
@@ -67,7 +68,7 @@ class _AppointmentReminderPageState extends State<AppointmentReminderPage> {
                 ),
                 trailing: const Icon(
                   Icons.calendar_today,
-                  color: Colors.orange,
+                  color: AppColors.warning,
                 ),
                 onTap: () async {
                   final d = await showDatePicker(
@@ -81,7 +82,7 @@ class _AppointmentReminderPageState extends State<AppointmentReminderPage> {
               ),
               ListTile(
                 title: Text("Time: ${selectedTime.format(context)}"),
-                trailing: const Icon(Icons.access_time, color: Colors.orange),
+                trailing: const Icon(Icons.access_time, color: AppColors.warning),
                 onTap: () async {
                   final t = await showTimePicker(
                     context: context,
@@ -98,7 +99,7 @@ class _AppointmentReminderPageState extends State<AppointmentReminderPage> {
               child: const Text("Cancel"),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
               onPressed: () {
                 if (nameCtrl.text.isNotEmpty) {
                   // --- CALENDAR INTEGRATION LOGIC ---
@@ -156,7 +157,7 @@ class _AppointmentReminderPageState extends State<AppointmentReminderPage> {
           "Doctor Appointments",
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: Colors.orange,
+        backgroundColor: AppColors.warning,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _appointments.isEmpty
@@ -172,7 +173,7 @@ class _AppointmentReminderPageState extends State<AppointmentReminderPage> {
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
                     leading: const CircleAvatar(
-                      backgroundColor: Colors.orange,
+                      backgroundColor: AppColors.warning,
                       child: Icon(
                         Icons.calendar_today,
                         color: Colors.white,
@@ -187,7 +188,7 @@ class _AppointmentReminderPageState extends State<AppointmentReminderPage> {
                       "${DateFormat('EEEE, MMM d').format(dt)} at ${apt['time']}",
                     ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      icon: const Icon(Icons.delete_outline, color: AppColors.danger),
                       onPressed: () {
                         setState(() => _appointments.removeAt(index));
                         _saveAppointments();
@@ -198,7 +199,7 @@ class _AppointmentReminderPageState extends State<AppointmentReminderPage> {
               },
             ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.orange,
+        backgroundColor: AppColors.warning,
         onPressed: _addAppointment,
         child: const Icon(Icons.add_task, color: Colors.white),
       ),

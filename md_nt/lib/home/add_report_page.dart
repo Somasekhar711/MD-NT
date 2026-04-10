@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:md_nt/config.dart';
+import 'package:md_nt/theme/app_colors.dart';
 
 class AddReportPage extends StatefulWidget {
   const AddReportPage({super.key});
@@ -60,9 +62,9 @@ class _AddReportPageState extends State<AddReportPage> {
 
     setState(() => _isLoading = true);
     final prefs = await SharedPreferences.getInstance();
-    final String? userId = prefs.getString('userId');
+    final String? token = prefs.getString('token');
 
-    if (userId == null || userId.isEmpty) {
+    if (token == null || token.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Session data missing. Please login again.")),
@@ -77,6 +79,7 @@ class _AddReportPageState extends State<AddReportPage> {
         'POST', 
         Uri.parse('${AppConfig.baseUrl}/add-report')
       );
+      request.headers['Authorization'] = 'Bearer $token';
       
       request.fields['doctorName'] = docController.text;
       request.fields['hospitalName'] = hospController.text;
@@ -86,8 +89,6 @@ class _AddReportPageState extends State<AddReportPage> {
       request.fields['disease'] = diseaseController.text.trim().isEmpty 
           ? 'General' 
           : diseaseController.text.trim();
-          
-      request.fields['userId'] = userId;
 
       request.files.add(await http.MultipartFile.fromPath(
         'reportImage', 
@@ -95,6 +96,14 @@ class _AddReportPageState extends State<AddReportPage> {
       ));
 
       var response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      String serverMessage = 'Upload Failed. Check Server.';
+      try {
+        final decoded = jsonDecode(responseBody);
+        if (decoded is Map && decoded['message'] != null) {
+          serverMessage = decoded['message'].toString();
+        }
+      } catch (_) {}
 
       if (response.statusCode == 201) {
         if (mounted) {
@@ -103,9 +112,13 @@ class _AddReportPageState extends State<AddReportPage> {
             const SnackBar(content: Text("Report Digitized Successfully!")),
           );
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Session expired/invalid. Please login again. ($serverMessage)')),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Upload Failed. Check Server.")),
+          SnackBar(content: Text(serverMessage)),
         );
       }
     } catch (e) {
@@ -153,7 +166,7 @@ class _AddReportPageState extends State<AddReportPage> {
                 "Date: ${_selectedDate.toLocal().toString().split(' ')[0]}", 
                 style: const TextStyle(fontSize: 16),
               ),
-              leading: const Icon(Icons.calendar_today, color: Colors.blue),
+              leading: const Icon(Icons.calendar_today, color: AppColors.primary),
               onTap: () => _selectDate(context),
               tileColor: Colors.grey[100],
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -179,8 +192,8 @@ class _AddReportPageState extends State<AddReportPage> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : uploadReport,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue, 
-                  padding: const EdgeInsets.all(15)
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.all(15),
                 ),
                 child: _isLoading 
                   ? const CircularProgressIndicator(color: Colors.white) 
