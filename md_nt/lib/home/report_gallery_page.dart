@@ -24,8 +24,9 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
   bool _isLoading = true;
   bool _isMutating = false;
   String? _errorMessage;
-  String _currentSort = 'Recent'; 
-  String _selectedDisease = 'All'; // Tracks the active "Smart Folder"
+  String _currentSort = 'Recent';
+  String _activeFilterType = 'all'; // all, doctor, disease, hospital
+  String _activeFilterValue = 'All';
 
   @override
   void initState() {
@@ -378,6 +379,155 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
     );
   }
 
+  Future<void> _showFilterTypeMenu() async {
+    final String? filterType = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            const Text(
+              'Filter Reports',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.person_outline, color: AppColors.primary),
+              title: const Text('Filter by Doctor'),
+              onTap: () => Navigator.pop(context, 'doctor'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.local_hospital_outlined, color: AppColors.success),
+              title: const Text('Filter by Disease'),
+              onTap: () => Navigator.pop(context, 'disease'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.business_outlined, color: AppColors.warning),
+              title: const Text('Filter by Hospital'),
+              onTap: () => Navigator.pop(context, 'hospital'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.clear, color: AppColors.danger),
+              title: const Text('Clear Filter'),
+              onTap: () => Navigator.pop(context, 'clear'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (filterType == null) return;
+
+    if (filterType == 'clear') {
+      setState(() {
+        _activeFilterType = 'all';
+        _activeFilterValue = 'All';
+      });
+      return;
+    }
+
+    await _showFilterValueChooser(filterType);
+  }
+
+  List<String> _getFilterValues(String filterType) {
+    final Set<String> values = {};
+    for (final rawReport in reports) {
+      final report = Map<String, dynamic>.from(rawReport);
+      String value;
+      if (filterType == 'doctor') {
+        value = (report['doctorName'] ?? 'Unknown Doctor').toString().trim();
+      } else if (filterType == 'disease') {
+        value = (report['disease'] ?? 'General').toString().trim();
+      } else {
+        value = (report['hospitalName'] ?? 'Unknown Hospital').toString().trim();
+      }
+      if (value.isNotEmpty) {
+        values.add(value);
+      }
+    }
+
+    final sorted = values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return sorted;
+  }
+
+  Future<void> _showFilterValueChooser(String filterType) async {
+    final options = _getFilterValues(filterType);
+
+    if (options.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No values available for this filter')),
+      );
+      return;
+    }
+
+    final String? selected = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const SizedBox(height: 12),
+            ListTile(
+              title: Text(
+                'Choose ${filterType[0].toUpperCase()}${filterType.substring(1)}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            ...options.map(
+              (value) => ListTile(
+                title: Text(value),
+                onTap: () => Navigator.pop(context, value),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (selected == null) return;
+
+    setState(() {
+      _activeFilterType = filterType;
+      _activeFilterValue = selected;
+    });
+  }
+
+  List _applyActiveFilter(List sourceReports) {
+    if (_activeFilterType == 'all' || _activeFilterValue == 'All') {
+      return sourceReports;
+    }
+
+    return sourceReports.where((raw) {
+      final report = Map<String, dynamic>.from(raw);
+      if (_activeFilterType == 'doctor') {
+        return (report['doctorName'] ?? '').toString() == _activeFilterValue;
+      }
+      if (_activeFilterType == 'disease') {
+        return (report['disease'] ?? 'General').toString() == _activeFilterValue;
+      }
+      return (report['hospitalName'] ?? '').toString() == _activeFilterValue;
+    }).toList();
+  }
+
+  String _activeFilterLabel() {
+    if (_activeFilterType == 'all' || _activeFilterValue == 'All') {
+      return 'All Reports';
+    }
+    final heading =
+        '${_activeFilterType[0].toUpperCase()}${_activeFilterType.substring(1)}';
+    return '$heading: $_activeFilterValue';
+  }
+
   Future<void> _exportMatchingReports(
     List<Map<String, dynamic>> matchingReports,
     String exportType,
@@ -701,17 +851,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
   Widget build(BuildContext context) {
     String serverUrl = "http://${AppConfig.ipAddress}:5000/";
 
-    // --- 3. Smart Folder Logic (Extract unique diseases) ---
-    Set<String> uniqueDiseases = {'All'};
-    for (var report in reports) {
-      // If 'disease' doesn't exist in the DB yet, it defaults to 'General'
-      uniqueDiseases.add(report['disease'] ?? 'General'); 
-    }
-
-    // --- 4. Filter logic based on selected chip ---
-    List filteredReports = _selectedDisease == 'All' 
-        ? reports 
-        : reports.where((r) => (r['disease'] ?? 'General') == _selectedDisease).toList();
+    final List filteredReports = _applyActiveFilter(reports);
 
     return Scaffold(
       appBar: AppBar(
@@ -737,6 +877,11 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
             tooltip: 'Export Reports',
             onPressed: reports.isEmpty || _isMutating ? null : _showExportMenu,
           ),
+          IconButton(
+            icon: const Icon(Icons.filter_alt, color: Colors.white),
+            tooltip: 'Filter Reports',
+            onPressed: reports.isEmpty || _isMutating ? null : _showFilterTypeMenu,
+          ),
           // Sort Dropdown Menu
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort, color: Colors.white),
@@ -759,35 +904,29 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
               ? Center(child: Text(_errorMessage!))
           : Column(
               children: [
-                // --- TOP ROW: Disease/Condition Filter Chips ---
                 if (reports.isNotEmpty)
                   Container(
-                    height: 60,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: uniqueDiseases.map((disease) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: ChoiceChip(
-                            label: Text(
-                              disease, 
-                              style: TextStyle(
-                                color: _selectedDisease == disease ? Colors.white : Colors.black87,
-                                fontWeight: _selectedDisease == disease ? FontWeight.bold : FontWeight.normal
-                              )
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.filter_alt, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _activeFilterLabel(),
+                            style: const TextStyle(
+                              color: AppColors.primaryDark,
+                              fontWeight: FontWeight.w600,
                             ),
-                            selected: _selectedDisease == disease,
-                            selectedColor: AppColors.primary,
-                            backgroundColor: Colors.grey.shade200,
-                            onSelected: (bool selected) {
-                              setState(() {
-                                _selectedDisease = disease;
-                              });
-                            },
                           ),
-                        );
-                      }).toList(),
+                        ),
+                      ],
                     ),
                   ),
 
