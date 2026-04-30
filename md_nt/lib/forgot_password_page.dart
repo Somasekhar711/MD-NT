@@ -25,6 +25,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   String _securityQuestion = "";
   bool _isPasswordVisible = false;
 
+  @override
+  void dispose() {
+    emailController.dispose();
+    answerController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+
   void showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
@@ -49,12 +58,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final String? question = data['question'] as String?;
+
+        if (question == null || question.trim().isEmpty) {
+          showSnack(
+            'If the account exists, continue with your registered recovery details.',
+          );
+          return;
+        }
+
         setState(() {
-          _securityQuestion = data['question'];
+          _securityQuestion = question;
           _step = 2; // Move to the next step!
         });
       } else {
-        showSnack('User not found. Check your email.');
+        showSnack(
+          'If the account exists, continue with your registered recovery details.',
+        );
       }
     } on TimeoutException {
       showSnack('Server timeout. Check your PC IP and network connection.');

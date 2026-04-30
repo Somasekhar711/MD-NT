@@ -176,7 +176,7 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
     }
   }
 
-  Future<void> _snoozeTime(int medicineIndex, int timeIndex) async {
+  Future<void> _snoozeTime(int medicineIndex) async {
     try {
       final reminder = _reminders[medicineIndex];
       final medicineName = reminder['name'].toString();
@@ -385,7 +385,6 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
         ),
       ),
     );
-
     if (result == null || !mounted) {
       return;
     }
@@ -523,7 +522,7 @@ class _MedicineReminderPageState extends State<MedicineReminderPage> {
                                   ],
                                 ),
                                 OutlinedButton.icon(
-                                  onPressed: () => _snoozeTime(index, timeIndex),
+                                  onPressed: () => _snoozeTime(index),
                                   icon: const Icon(
                                     Icons.snooze,
                                     size: 18,

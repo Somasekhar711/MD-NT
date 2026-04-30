@@ -36,6 +36,16 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final Color primaryColor = AppColors.primary;
 
+  @override
+  void dispose() {
+    usernameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    securityAnswerController.dispose();
+    super.dispose();
+  }
+
   void showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg)),

@@ -90,12 +90,9 @@ exports.getSecurityQuestion = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ where: { email } });
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json({ question: user.securityQuestion });
+    // Avoid account enumeration: return a generic successful response
+    // even when the email is unknown.
+    res.json({ question: user?.securityQuestion || null });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });

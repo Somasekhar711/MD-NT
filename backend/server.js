@@ -49,7 +49,8 @@ sequelize
   .then(async () => {
     console.log('PostgreSQL Connected');
     await normalizeReportsUserIdColumn();
-    await sequelize.sync({ alter: true });
+    const shouldAlterSchema = process.env.DB_SYNC_ALTER === 'true';
+    await sequelize.sync({ alter: shouldAlterSchema });
     console.log('Tables synced');
   })
   .catch((err) => console.error('DB Error:', err));

@@ -23,6 +23,13 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> login() async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
       ScaffoldMessenger.of(

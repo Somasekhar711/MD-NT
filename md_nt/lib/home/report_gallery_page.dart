@@ -50,6 +50,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
     final String? token = await _getToken();
 
     if (userId == null || userId.isEmpty || token == null) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Session data missing. Please login again.';
         _isLoading = false;
@@ -64,6 +65,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
       ).timeout(const Duration(seconds: 12));
 
       if (response.statusCode == 200) {
+        if (!mounted) return;
         setState(() {
           reports = jsonDecode(response.body);
           _errorMessage = null;
@@ -72,6 +74,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
           _isLoading = false;
         });
       } else {
+        if (!mounted) return;
         setState(() {
           _errorMessage = 'Failed to load reports.';
           _isLoading = false;
@@ -79,6 +82,7 @@ class _ReportGalleryPageState extends State<ReportGalleryPage> {
       }
     } catch (e) {
       debugPrint("Error fetching reports: $e");
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Could not connect to the server.';
         _isLoading = false;
