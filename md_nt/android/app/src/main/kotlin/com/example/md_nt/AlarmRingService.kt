@@ -8,16 +8,27 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
-import android.media.Ringtone
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.media.ToneGenerator
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.provider.Settings
+import android.util.Log
 import androidx.core.app.NotificationCompat
 
 class AlarmRingService : Service() {
-    private var ringtone: Ringtone? = null
+    private val tag = "AlarmRingService"
+    private var mediaPlayer: MediaPlayer? = null
+    private var toneGenerator: ToneGenerator? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -104,6 +115,7 @@ class AlarmRingService : Service() {
     private fun stopAlarm() {
         stopRingtone()
         releaseWakeLock()
+        abandonAudioFocus()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
@@ -168,26 +180,136 @@ class AlarmRingService : Service() {
     }
 
     private fun playRingtone() {
-        if (ringtone?.isPlaying == true) {
+        if (mediaPlayer?.isPlaying == true) {
             return
         }
 
-        val alarmUri =
-            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        if (!requestAudioFocus()) {
+            return
+        }
 
-        ringtone = RingtoneManager.getRingtone(this, alarmUri)?.apply {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                isLooping = true
+        val candidateUris = listOfNotNull(
+            RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM),
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+            Settings.System.DEFAULT_ALARM_ALERT_URI,
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
+        )
+
+        for (uri in candidateUris) {
+            if (tryStartMediaPlayer(uri)) {
+                return
             }
-            play()
+        }
+        Log.e(tag, "Failed to start alarm audio via MediaPlayer URIs; using tone fallback")
+        startToneFallback()
+    }
+
+    private fun tryStartMediaPlayer(uri: Uri): Boolean {
+        return try {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer.create(this, uri)?.apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    setAudioStreamType(AudioManager.STREAM_ALARM)
+                }
+                isLooping = true
+                setVolume(1.0f, 1.0f)
+                start()
+            }
+
+            val started = mediaPlayer?.isPlaying == true
+            if (!started) {
+                Log.w(tag, "MediaPlayer did not start for uri=$uri")
+                mediaPlayer?.release()
+                mediaPlayer = null
+            }
+            started
+        } catch (e: Exception) {
+            Log.e(tag, "MediaPlayer failed for uri=$uri", e)
+            mediaPlayer?.release()
+            mediaPlayer = null
+            false
         }
     }
 
     private fun stopRingtone() {
-        ringtone?.stop()
-        ringtone = null
+        toneGenerator?.let {
+            try {
+                it.stopTone()
+            } catch (_: Exception) {
+            }
+            it.release()
+        }
+        toneGenerator = null
+
+        mediaPlayer?.let {
+            try {
+                if (it.isPlaying) {
+                    it.stop()
+                }
+            } catch (_: Exception) {
+            }
+            it.release()
+        }
+        mediaPlayer = null
+        abandonAudioFocus()
+    }
+
+    private fun startToneFallback() {
+        try {
+            toneGenerator?.release()
+            toneGenerator = ToneGenerator(AudioManager.STREAM_ALARM, 100).apply {
+                startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 120_000)
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Tone fallback failed", e)
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val manager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager = manager
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request =
+                AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                    .build()
+            audioFocusRequest = request
+            manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            manager.requestAudioFocus(
+                audioFocusChangeListener,
+                AudioManager.STREAM_ALARM,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
+            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        val manager = audioManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = audioFocusRequest ?: return
+            manager.abandonAudioFocusRequest(request)
+            audioFocusRequest = null
+        } else {
+            @Suppress("DEPRECATION")
+            manager.abandonAudioFocus(audioFocusChangeListener)
+        }
     }
 
     private fun acquireWakeLock() {
